@@ -1,0 +1,6 @@
+kind: apphosting.yaml
+runtime: nodejs20
+runConfig:
+  concurrency: 80
+  cpu: 1
+  memoryMiB: 512
