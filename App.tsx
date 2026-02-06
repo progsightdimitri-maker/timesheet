@@ -450,14 +450,10 @@ const App: React.FC = () => {
                             {/* Right: Stats (Time, Duration) - MOVED HERE */}
                             <div className="flex items-center justify-between sm:justify-end gap-2 sm:gap-6 text-sm">
                               <div className="flex items-center gap-1">
-                                {entry.invoiced ? (
+                                {entry.invoiced && (
                                   <div className="flex items-center gap-1 px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-[10px] font-bold uppercase tracking-wider border border-green-200">
                                     <DollarSign className="w-3 h-3" />
                                     <span>Facturé</span>
-                                  </div>
-                                ) : (
-                                  <div title={entry.billable ? "Facturable" : "Non facturable"}>
-                                    <DollarSign className={`w-4 h-4 ${entry.billable ? 'text-blue-500' : 'text-gray-300'}`} />
                                   </div>
                                 )}
                               </div>
