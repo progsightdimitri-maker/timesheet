@@ -62,6 +62,7 @@ const App: React.FC = () => {
   const { user, loading, signOut, isAdmin } = useAuth();
   const [view, setView] = useState<ViewMode>('timer');
   const [activeEntry, setActiveEntry] = useState<TimeEntry | null>(null);
+  const [timerBillingFilter, setTimerBillingFilter] = useState<'all' | 'invoiced' | 'not-invoiced'>('all');
 
   // Use custom hooks for data and timer management
   const { projects, clients, entries, settings } = useFirestoreData(user?.uid || null);
@@ -208,10 +209,16 @@ const App: React.FC = () => {
   };
 
 
-  // Grouping Logic - Use utility function
+  // Grouping Logic - Use utility function with optional filtering
   const groupedEntries = useMemo(() => {
-    return groupEntriesByWeek(entries);
-  }, [entries]);
+    let filteredEntries = entries;
+    if (timerBillingFilter === 'invoiced') {
+      filteredEntries = entries.filter(e => e.invoiced);
+    } else if (timerBillingFilter === 'not-invoiced') {
+      filteredEntries = entries.filter(e => !e.invoiced);
+    }
+    return groupEntriesByWeek(filteredEntries);
+  }, [entries, timerBillingFilter]);
 
   const selectedProject = projects.find(p => p.id === selectedProjectId);
 
@@ -333,7 +340,41 @@ const App: React.FC = () => {
       </div>
 
       {/* Main List */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+
+        {/* Billing Status Filter */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-3 rounded-lg border border-gray-200 shadow-sm">
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 bg-gray-100 rounded-md">
+              <List className="w-4 h-4 text-gray-500" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-gray-900">Entrées de temps</h3>
+              <p className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">Filtrer par statut</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1 bg-gray-50 p-1 rounded-lg border border-gray-100">
+            <button
+              onClick={() => setTimerBillingFilter('all')}
+              className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${timerBillingFilter === 'all' ? 'bg-white text-gray-900 shadow-sm border border-gray-100' : 'text-gray-500 hover:text-gray-700'}`}
+            >
+              Tout
+            </button>
+            <button
+              onClick={() => setTimerBillingFilter('not-invoiced')}
+              className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${timerBillingFilter === 'not-invoiced' ? 'bg-white text-blue-600 shadow-sm border border-gray-100' : 'text-gray-500 hover:text-gray-700'}`}
+            >
+              À facturer
+            </button>
+            <button
+              onClick={() => setTimerBillingFilter('invoiced')}
+              className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${timerBillingFilter === 'invoiced' ? 'bg-white text-green-600 shadow-sm border border-gray-100' : 'text-gray-500 hover:text-gray-700'}`}
+            >
+              Facturé
+            </button>
+          </div>
+        </div>
         {groupedEntries.map((week, weekIdx) => (
           <div key={weekIdx}>
             {/* Week Header */}
@@ -371,7 +412,7 @@ const App: React.FC = () => {
                       return (
                         <div
                           key={entry.id}
-                          className="group bg-white hover:bg-gray-50 transition-colors border-b last:border-b-0 border-gray-100 flex flex-col sm:flex-row"
+                          className={`group bg-white hover:bg-gray-50 transition-colors border-b last:border-b-0 border-gray-100 flex flex-col sm:flex-row ${entry.invoiced ? 'border-l-4 border-l-green-500 bg-green-50/20' : ''}`}
                         >
                           {/* 
                              ZONE CLIQUABLE (ÉDITION)
@@ -409,15 +450,20 @@ const App: React.FC = () => {
                             {/* Right: Stats (Time, Duration) - MOVED HERE */}
                             <div className="flex items-center justify-between sm:justify-end gap-2 sm:gap-6 text-sm">
                               <div className="flex items-center gap-1">
-                                <Tag className="w-4 h-4 text-gray-300" />
-                                <div title={entry.invoiced ? "Facturée" : (entry.billable ? "Facturable" : "Non facturable")}>
-                                  <DollarSign className={`w-4 h-4 ${entry.invoiced ? 'text-green-600' : (entry.billable ? 'text-blue-500' : 'text-gray-300')}`} />
-                                </div>
+                                {entry.invoiced ? (
+                                  <div className="flex items-center gap-1 px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-[10px] font-bold uppercase tracking-wider border border-green-200">
+                                    <DollarSign className="w-3 h-3" />
+                                    <span>Facturé</span>
+                                  </div>
+                                ) : (
+                                  <div title={entry.billable ? "Facturable" : "Non facturable"}>
+                                    <DollarSign className={`w-4 h-4 ${entry.billable ? 'text-blue-500' : 'text-gray-300'}`} />
+                                  </div>
+                                )}
                               </div>
                               <div className="text-gray-500 tabular-nums text-xs sm:text-sm">
                                 {entry.startTime} - {entry.endTime}
                               </div>
-                              <CalendarIcon className="w-4 h-4 text-gray-300 hidden sm:block" />
                               <div className="font-bold text-gray-800 tabular-nums w-16 text-right text-base">
                                 {formatDuration(duration)}
                               </div>
