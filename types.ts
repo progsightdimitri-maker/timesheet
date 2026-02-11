@@ -10,6 +10,39 @@ export interface TimeEntry {
   invoiced?: boolean;
 }
 
+export interface License {
+  id: string;
+  name: string;
+  price: number;
+  project: string; // Project ID
+  client: string;  // Client Name (denormalized for convenience)
+  date: Date;
+  invoiced: boolean;
+  notes?: string;
+}
+
+export interface Server {
+  id: string;
+  name: string;
+  price: number;
+  project: string; // Project ID
+  client: string;  // Client Name
+  date: Date;
+  invoiced: boolean;
+  notes?: string;
+}
+
+export interface Domain {
+  id: string;
+  name: string;
+  price: number;
+  project: string; // Project ID
+  client: string;  // Client Name
+  date: Date;
+  invoiced: boolean;
+  notes?: string;
+}
+
 export interface Project {
   id: string;
   name: string;

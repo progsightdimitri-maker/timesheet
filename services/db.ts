@@ -1,11 +1,11 @@
 
-import { 
-  collection, 
-  doc, 
-  setDoc, 
-  deleteDoc, 
-  onSnapshot, 
-  query, 
+import {
+  collection,
+  doc,
+  setDoc,
+  deleteDoc,
+  onSnapshot,
+  query,
   Timestamp,
   updateDoc,
   where,
@@ -16,7 +16,7 @@ import {
   collectionGroup
 } from 'firebase/firestore';
 import { db } from './firebase';
-import { TimeEntry, Project, AppSettings, Client, RefundRequest, RefundStatus } from '../types';
+import { TimeEntry, Project, AppSettings, Client, RefundRequest, RefundStatus, License, Server, Domain } from '../types';
 import { debugLogger } from '../utils/debugLogger';
 
 // --- User Profile ---
@@ -34,7 +34,7 @@ export const saveUserProfile = async (user: any) => {
       lastLogin: Timestamp.now()
     }, { merge: true });
     debugLogger.success('DB: User Profile Saved');
-  } catch(e: any) {
+  } catch (e: any) {
     debugLogger.error('DB: Save User Profile Failed', e.message);
   }
 };
@@ -63,23 +63,23 @@ export const addProject = async (userId: string, project: Project) => {
     const data = JSON.parse(JSON.stringify(project));
     await setDoc(docRef, data);
     debugLogger.success('DB: Project Added');
-  } catch(e: any) {
+  } catch (e: any) {
     debugLogger.error('DB: Add Project Failed', e.message);
     throw e;
   }
 };
 
 export const updateProject = async (userId: string, project: Project) => {
-    try {
-        debugLogger.info('DB: Updating Project', { id: project.id });
-        const docRef = doc(db, `users/${userId}/projects`, project.id);
-        const data = JSON.parse(JSON.stringify(project));
-        await updateDoc(docRef, data);
-        debugLogger.success('DB: Project Updated');
-    } catch(e: any) {
-        debugLogger.error('DB: Update Project Failed', e.message);
-        throw e;
-    }
+  try {
+    debugLogger.info('DB: Updating Project', { id: project.id });
+    const docRef = doc(db, `users/${userId}/projects`, project.id);
+    const data = JSON.parse(JSON.stringify(project));
+    await updateDoc(docRef, data);
+    debugLogger.success('DB: Project Updated');
+  } catch (e: any) {
+    debugLogger.error('DB: Update Project Failed', e.message);
+    throw e;
+  }
 };
 
 export const deleteProject = async (userId: string, projectId: string) => {
@@ -87,7 +87,7 @@ export const deleteProject = async (userId: string, projectId: string) => {
     debugLogger.info('DB: Deleting Project', { projectId });
     await deleteDoc(doc(db, `users/${userId}/projects`, projectId));
     debugLogger.success('DB: Project Deleted');
-  } catch(e: any) {
+  } catch (e: any) {
     debugLogger.error('DB: Delete Project Failed', e.message);
     throw e;
   }
@@ -115,69 +115,69 @@ export const subscribeToClients = (userId: string, callback: (clients: Client[])
 };
 
 export const addClient = async (userId: string, clientData: { name: string, color?: string }) => {
-    try {
-        const clientName = clientData.name.trim();
-        if (!clientName) throw new Error("Client name cannot be empty");
+  try {
+    const clientName = clientData.name.trim();
+    if (!clientName) throw new Error("Client name cannot be empty");
 
-        debugLogger.info('DB: Adding Client', { clientName });
+    debugLogger.info('DB: Adding Client', { clientName });
 
-        // Use the name as the ID
-        const docRef = doc(db, `users/${userId}/clients`, clientName);
-        
-        // Check for uniqueness before creating
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-             throw new Error("Impossible de créer ce client : Un client portant ce nom existe déjà.");
-        }
+    // Use the name as the ID
+    const docRef = doc(db, `users/${userId}/clients`, clientName);
 
-        await setDoc(docRef, { name: clientName, color: clientData.color || '#6b7280' });
-        debugLogger.success('DB: Client Added');
-    } catch(e: any) {
-        debugLogger.error('DB: Add Client Failed', e.message);
-        throw e;
+    // Check for uniqueness before creating
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+      throw new Error("Impossible de créer ce client : Un client portant ce nom existe déjà.");
     }
+
+    await setDoc(docRef, { name: clientName, color: clientData.color || '#6b7280' });
+    debugLogger.success('DB: Client Added');
+  } catch (e: any) {
+    debugLogger.error('DB: Add Client Failed', e.message);
+    throw e;
+  }
 };
 
 export const deleteClient = async (userId: string, clientId: string) => {
-    try {
-        debugLogger.info('DB: Deleting Client', { clientId });
+  try {
+    debugLogger.info('DB: Deleting Client', { clientId });
 
-        // 1. Check for existing projects linked to this client
-        // Since clientId is the name of the client, we check the 'client' field in projects
-        const projectsQuery = query(
-            collection(db, `users/${userId}/projects`), 
-            where('client', '==', clientId) // clientId IS the name
-        );
-        const projectsSnap = await getDocs(projectsQuery);
+    // 1. Check for existing projects linked to this client
+    // Since clientId is the name of the client, we check the 'client' field in projects
+    const projectsQuery = query(
+      collection(db, `users/${userId}/projects`),
+      where('client', '==', clientId) // clientId IS the name
+    );
+    const projectsSnap = await getDocs(projectsQuery);
 
-        if (!projectsSnap.empty) {
-            const count = projectsSnap.size;
-            throw new Error(`Impossible de supprimer le client "${clientId}" car ${count} projet(s) y sont rattachés. Veuillez d'abord supprimer ou réassigner ces projets.`);
-        }
-
-        // 2. Proceed with deletion if safe
-        const docRef = doc(db, `users/${userId}/clients`, clientId); 
-        await deleteDoc(docRef);
-        debugLogger.success('DB: Client Deleted');
-    } catch(e: any) {
-        debugLogger.error('DB: Delete Client Failed', e.message);
-        throw e;
+    if (!projectsSnap.empty) {
+      const count = projectsSnap.size;
+      throw new Error(`Impossible de supprimer le client "${clientId}" car ${count} projet(s) y sont rattachés. Veuillez d'abord supprimer ou réassigner ces projets.`);
     }
+
+    // 2. Proceed with deletion if safe
+    const docRef = doc(db, `users/${userId}/clients`, clientId);
+    await deleteDoc(docRef);
+    debugLogger.success('DB: Client Deleted');
+  } catch (e: any) {
+    debugLogger.error('DB: Delete Client Failed', e.message);
+    throw e;
+  }
 };
 
 export const updateClient = async (userId: string, client: Client, oldName: string) => {
   try {
     debugLogger.info('DB: Updating Client', { id: client.id, oldName, newName: client.name });
-    
+
     const newId = client.name.trim();
     const oldId = client.id; // Usually holds the old name/ID
-    
+
     // If name hasn't changed (ID remains same), just update the field
     if (newId === oldId) {
-         const docRef = doc(db, `users/${userId}/clients`, oldId);
-         await updateDoc(docRef, { color: client.color });
-         debugLogger.success('DB: Client Color Updated');
-         return;
+      const docRef = doc(db, `users/${userId}/clients`, oldId);
+      await updateDoc(docRef, { color: client.color });
+      debugLogger.success('DB: Client Color Updated');
+      return;
     }
 
     // If Name changed, we must ensure the ID matches the new Name
@@ -185,7 +185,7 @@ export const updateClient = async (userId: string, client: Client, oldName: stri
     const newDocRef = doc(db, `users/${userId}/clients`, newId);
     const newDocSnap = await getDoc(newDocRef);
     if (newDocSnap.exists()) {
-        throw new Error("Impossible de renommer : Un client portant ce nom existe déjà.");
+      throw new Error("Impossible de renommer : Un client portant ce nom existe déjà.");
     }
 
     const batch = writeBatch(db);
@@ -201,11 +201,11 @@ export const updateClient = async (userId: string, client: Client, oldName: stri
     // Note: Projects reference the client by 'name' field currently, which was equal to ID
     if (oldName !== client.name) {
       const projectsQuery = query(
-        collection(db, `users/${userId}/projects`), 
+        collection(db, `users/${userId}/projects`),
         where('client', '==', oldName)
       );
       const projectsSnap = await getDocs(projectsQuery);
-      
+
       projectsSnap.forEach((projectDoc) => {
         batch.update(projectDoc.ref, { client: client.name });
       });
@@ -246,25 +246,25 @@ export const saveTimeEntry = async (userId: string, entry: TimeEntry) => {
     debugLogger.info('DB: Saving Entry', { id: entry.id });
     const docRef = doc(db, `users/${userId}/timeEntries`, entry.id);
     await setDoc(docRef, {
-        ...entry,
-        date: Timestamp.fromDate(entry.date)
+      ...entry,
+      date: Timestamp.fromDate(entry.date)
     });
     debugLogger.success('DB: Entry Saved');
-  } catch(e: any) {
+  } catch (e: any) {
     debugLogger.error('DB: Save Entry Failed', e.message);
     throw e;
   }
 };
 
 export const deleteTimeEntry = async (userId: string, entryId: string) => {
-    try {
-        debugLogger.info('DB: Deleting Entry', { entryId });
-        await deleteDoc(doc(db, `users/${userId}/timeEntries`, entryId));
-        debugLogger.success('DB: Entry Deleted');
-    } catch(e: any) {
-        debugLogger.error('DB: Delete Entry Failed', e.message);
-        throw e;
-    }
+  try {
+    debugLogger.info('DB: Deleting Entry', { entryId });
+    await deleteDoc(doc(db, `users/${userId}/timeEntries`, entryId));
+    debugLogger.success('DB: Entry Deleted');
+  } catch (e: any) {
+    debugLogger.error('DB: Delete Entry Failed', e.message);
+    throw e;
+  }
 };
 
 // --- Settings ---
@@ -286,15 +286,15 @@ export const subscribeToSettings = (userId: string, callback: (settings: AppSett
 };
 
 export const saveSettings = async (userId: string, settings: AppSettings) => {
-    try {
-        debugLogger.info('DB: Saving Settings');
-        const docRef = doc(db, `users/${userId}/settings`, 'general');
-        await setDoc(docRef, settings, { merge: true });
-        debugLogger.success('DB: Settings Saved');
-    } catch(e: any) {
-        debugLogger.error('DB: Save Settings Failed', e.message);
-        throw e;
-    }
+  try {
+    debugLogger.info('DB: Saving Settings');
+    const docRef = doc(db, `users/${userId}/settings`, 'general');
+    await setDoc(docRef, settings, { merge: true });
+    debugLogger.success('DB: Settings Saved');
+  } catch (e: any) {
+    debugLogger.error('DB: Save Settings Failed', e.message);
+    throw e;
+  }
 };
 
 // --- Refunds ---
@@ -342,16 +342,16 @@ export const addRefundRequest = async (userId: string, amount: number, reason: s
     debugLogger.info('DB: Adding Refund Request', { userId, amount });
     const docRef = doc(collection(db, `users/${userId}/refundRequests`));
     const newRequest: any = {
-        userId,
-        userEmail,
-        amount,
-        reason,
-        status: 'pending',
-        createdAt: Timestamp.now()
+      userId,
+      userEmail,
+      amount,
+      reason,
+      status: 'pending',
+      createdAt: Timestamp.now()
     };
     await setDoc(docRef, newRequest);
     debugLogger.success('DB: Refund Request Added');
-  } catch(e: any) {
+  } catch (e: any) {
     debugLogger.error('DB: Add Refund Request Failed', e.message);
     throw e;
   }
@@ -363,8 +363,149 @@ export const updateRefundStatus = async (userId: string, requestId: string, stat
     const docRef = doc(db, `users/${userId}/refundRequests`, requestId);
     await updateDoc(docRef, { status });
     debugLogger.success('DB: Refund Status Updated');
-  } catch(e: any) {
+  } catch (e: any) {
     debugLogger.error('DB: Update Refund Status Failed', e.message);
+    throw e;
+  }
+};
+
+// --- Licenses ---
+
+export const subscribeToLicenses = (userId: string, callback: (licenses: License[]) => void) => {
+  debugLogger.info('DB: Subscribing to Licenses');
+  const q = query(collection(db, `users/${userId}/licenses`), orderBy('date', 'desc'));
+  return onSnapshot(q, (snapshot) => {
+    const licenses = snapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        ...data,
+        id: doc.id,
+        date: data.date instanceof Timestamp ? data.date.toDate() : new Date(data.date)
+      } as License;
+    });
+    debugLogger.success(`DB: Licenses loaded`, { count: licenses.length });
+    callback(licenses);
+  }, (error) => {
+    debugLogger.error('DB: Licenses Subscription Error', error);
+  });
+};
+
+export const saveLicense = async (userId: string, license: License) => {
+  try {
+    debugLogger.info('DB: Saving License', { id: license.id });
+    const docRef = doc(db, `users/${userId}/licenses`, license.id);
+    await setDoc(docRef, {
+      ...license,
+      date: Timestamp.fromDate(license.date)
+    });
+    debugLogger.success('DB: License Saved');
+  } catch (e: any) {
+    debugLogger.error('DB: Save License Failed', e.message);
+    throw e;
+  }
+};
+
+export const deleteLicense = async (userId: string, licenseId: string) => {
+  try {
+    debugLogger.info('DB: Deleting License', { licenseId });
+    await deleteDoc(doc(db, `users/${userId}/licenses`, licenseId));
+    debugLogger.success('DB: License Deleted');
+  } catch (e: any) {
+    debugLogger.error('DB: Delete License Failed', e.message);
+    throw e;
+  }
+};
+
+// --- Servers ---
+
+export const subscribeToServers = (userId: string, callback: (servers: Server[]) => void) => {
+  debugLogger.info('DB: Subscribing to Servers');
+  const q = query(collection(db, `users/${userId}/servers`), orderBy('date', 'desc'));
+  return onSnapshot(q, (snapshot) => {
+    const servers = snapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        ...data,
+        id: doc.id,
+        date: data.date instanceof Timestamp ? data.date.toDate() : new Date(data.date)
+      } as Server;
+    });
+    debugLogger.success(`DB: Servers loaded`, { count: servers.length });
+    callback(servers);
+  }, (error) => {
+    debugLogger.error('DB: Servers Subscription Error', error);
+  });
+};
+
+export const saveServer = async (userId: string, server: Server) => {
+  try {
+    debugLogger.info('DB: Saving Server', { id: server.id });
+    const docRef = doc(db, `users/${userId}/servers`, server.id);
+    await setDoc(docRef, {
+      ...server,
+      date: Timestamp.fromDate(server.date)
+    });
+    debugLogger.success('DB: Server Saved');
+  } catch (e: any) {
+    debugLogger.error('DB: Save Server Failed', e.message);
+    throw e;
+  }
+};
+
+export const deleteServer = async (userId: string, serverId: string) => {
+  try {
+    debugLogger.info('DB: Deleting Server', { serverId });
+    await deleteDoc(doc(db, `users/${userId}/servers`, serverId));
+    debugLogger.success('DB: Server Deleted');
+  } catch (e: any) {
+    debugLogger.error('DB: Delete Server Failed', e.message);
+    throw e;
+  }
+};
+
+// --- Domains ---
+
+export const subscribeToDomains = (userId: string, callback: (domains: Domain[]) => void) => {
+  debugLogger.info('DB: Subscribing to Domains');
+  const q = query(collection(db, `users/${userId}/domains`), orderBy('date', 'desc'));
+  return onSnapshot(q, (snapshot) => {
+    const domains = snapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        ...data,
+        id: doc.id,
+        date: data.date instanceof Timestamp ? data.date.toDate() : new Date(data.date)
+      } as Domain;
+    });
+    debugLogger.success(`DB: Domains loaded`, { count: domains.length });
+    callback(domains);
+  }, (error) => {
+    debugLogger.error('DB: Domains Subscription Error', error);
+  });
+};
+
+export const saveDomain = async (userId: string, domain: Domain) => {
+  try {
+    debugLogger.info('DB: Saving Domain', { id: domain.id });
+    const docRef = doc(db, `users/${userId}/domains`, domain.id);
+    await setDoc(docRef, {
+      ...domain,
+      date: Timestamp.fromDate(domain.date)
+    });
+    debugLogger.success('DB: Domain Saved');
+  } catch (e: any) {
+    debugLogger.error('DB: Save Domain Failed', e.message);
+    throw e;
+  }
+};
+
+export const deleteDomain = async (userId: string, domainId: string) => {
+  try {
+    debugLogger.info('DB: Deleting Domain', { domainId });
+    await deleteDoc(doc(db, `users/${userId}/domains`, domainId));
+    debugLogger.success('DB: Domain Deleted');
+  } catch (e: any) {
+    debugLogger.error('DB: Delete Domain Failed', e.message);
     throw e;
   }
 };

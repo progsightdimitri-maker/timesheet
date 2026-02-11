@@ -12,7 +12,10 @@ import {
   LayoutGrid,
   Settings as SettingsIcon,
   LogOut,
-  Loader2
+  Loader2,
+  CreditCard,
+  Globe,
+  Server as ServerIcon
 } from 'lucide-react';
 import {
   format,
@@ -24,7 +27,8 @@ import { ProjectManager } from './components/ProjectManager';
 import { Reports } from './components/Reports';
 import { Settings } from './components/Settings';
 import { DebugConsole } from './components/DebugConsole';
-import { TimeEntry, AppSettings, Project, Client } from './types';
+import { PurchaseManager } from './components/PurchaseManager';
+import { TimeEntry, AppSettings, Project, Client, License, Server, Domain } from './types';
 import { useAuth } from './contexts/AuthContext';
 import { Login } from './components/Login';
 import * as dbService from './services/db';
@@ -56,7 +60,7 @@ const calculateDuration = (start: string, end: string) => {
   return minutes;
 };
 
-type ViewMode = 'timer' | 'projects' | 'reports' | 'settings';
+type ViewMode = 'timer' | 'projects' | 'licenses' | 'servers' | 'domains' | 'reports' | 'settings';
 
 const App: React.FC = () => {
   const { user, loading, signOut, isAdmin } = useAuth();
@@ -65,7 +69,7 @@ const App: React.FC = () => {
   const [timerBillingFilter, setTimerBillingFilter] = useState<'all' | 'invoiced' | 'not-invoiced'>('all');
 
   // Use custom hooks for data and timer management
-  const { projects, clients, entries, settings } = useFirestoreData(user?.uid || null);
+  const { projects, clients, entries, licenses, servers, domains, settings } = useFirestoreData(user?.uid || null);
   const {
     isRunning: isTimerRunning,
     startTime: timerStartTime,
@@ -83,6 +87,9 @@ const App: React.FC = () => {
 
   // Deletion State
   const [entryToDelete, setEntryToDelete] = useState<string | null>(null);
+  const [licenseToDelete, setLicenseToDelete] = useState<string | null>(null);
+  const [serverToDelete, setServerToDelete] = useState<string | null>(null);
+  const [domainToDelete, setDomainToDelete] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
   // Environment State
@@ -208,6 +215,186 @@ const App: React.FC = () => {
     await dbService.saveSettings(user.uid, newSettings);
   };
 
+  // --- License Handlers ---
+
+  const handleAddLicense = async (name: string, price: number, projectId: string) => {
+    if (!user) return;
+    const project = projects.find(p => p.id === projectId);
+    const newLicense: License = {
+      id: crypto.randomUUID(),
+      name,
+      price,
+      project: projectId,
+      client: project?.client || 'No Client',
+      date: new Date(),
+      invoiced: false
+    };
+    await dbService.saveLicense(user.uid, newLicense);
+  };
+
+  const handleUpdateLicense = async (id: string, name: string, price: number, projectId: string) => {
+    if (!user) return;
+    const project = projects.find(p => p.id === projectId);
+    const existing = licenses.find(l => l.id === id);
+    if (!existing) return;
+
+    const updatedLicense: License = {
+      ...existing,
+      name,
+      price,
+      project: projectId,
+      client: project?.client || 'No Client'
+    };
+    await dbService.saveLicense(user.uid, updatedLicense);
+  };
+
+  const toggleLicenseInvoiced = async (license: License) => {
+    if (!user) return;
+    await dbService.saveLicense(user.uid, {
+      ...license,
+      invoiced: !license.invoiced
+    });
+  };
+
+  const initiateDeleteLicense = (id: string) => {
+    setLicenseToDelete(id);
+  };
+
+  const confirmDeleteLicense = async () => {
+    if (!user || !licenseToDelete) return;
+
+    setIsDeleting(true);
+    try {
+      await dbService.deleteLicense(user.uid, licenseToDelete);
+      setLicenseToDelete(null);
+    } catch (error) {
+      console.error("Failed to delete license:", error);
+      alert("Une erreur est survenue lors de la suppression de la licence.");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  // --- Server Handlers ---
+
+  const handleAddServer = async (name: string, price: number, projectId: string) => {
+    if (!user) return;
+    const project = projects.find(p => p.id === projectId);
+    const newServer: Server = {
+      id: crypto.randomUUID(),
+      name,
+      price,
+      project: projectId,
+      client: project?.client || 'No Client',
+      date: new Date(),
+      invoiced: false
+    };
+    await dbService.saveServer(user.uid, newServer);
+  };
+
+  const handleUpdateServer = async (id: string, name: string, price: number, projectId: string) => {
+    if (!user) return;
+    const project = projects.find(p => p.id === projectId);
+    const existing = servers.find(s => s.id === id);
+    if (!existing) return;
+
+    const updatedServer: Server = {
+      ...existing,
+      name,
+      price,
+      project: projectId,
+      client: project?.client || 'No Client'
+    };
+    await dbService.saveServer(user.uid, updatedServer);
+  };
+
+  const toggleServerInvoiced = async (server: Server) => {
+    if (!user) return;
+    await dbService.saveServer(user.uid, {
+      ...server,
+      invoiced: !server.invoiced
+    });
+  };
+
+  const initiateDeleteServer = (id: string) => {
+    setServerToDelete(id);
+  };
+
+  const confirmDeleteServer = async () => {
+    if (!user || !serverToDelete) return;
+
+    setIsDeleting(true);
+    try {
+      await dbService.deleteServer(user.uid, serverToDelete);
+      setServerToDelete(null);
+    } catch (error) {
+      console.error("Failed to delete server:", error);
+      alert("Une erreur est survenue lors de la suppression du serveur.");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  // --- Domain Handlers ---
+
+  const handleAddDomain = async (name: string, price: number, projectId: string) => {
+    if (!user) return;
+    const project = projects.find(p => p.id === projectId);
+    const newDomain: Domain = {
+      id: crypto.randomUUID(),
+      name,
+      price,
+      project: projectId,
+      client: project?.client || 'No Client',
+      date: new Date(),
+      invoiced: false
+    };
+    await dbService.saveDomain(user.uid, newDomain);
+  };
+
+  const handleUpdateDomain = async (id: string, name: string, price: number, projectId: string) => {
+    if (!user) return;
+    const project = projects.find(p => p.id === projectId);
+    const existing = domains.find(d => d.id === id);
+    if (!existing) return;
+
+    const updatedDomain: Domain = {
+      ...existing,
+      name,
+      price,
+      project: projectId,
+      client: project?.client || 'No Client'
+    };
+    await dbService.saveDomain(user.uid, updatedDomain);
+  };
+
+  const toggleDomainInvoiced = async (domain: Domain) => {
+    if (!user) return;
+    await dbService.saveDomain(user.uid, {
+      ...domain,
+      invoiced: !domain.invoiced
+    });
+  };
+
+  const initiateDeleteDomain = (id: string) => {
+    setDomainToDelete(id);
+  };
+
+  const confirmDeleteDomain = async () => {
+    if (!user || !domainToDelete) return;
+
+    setIsDeleting(true);
+    try {
+      await dbService.deleteDomain(user.uid, domainToDelete);
+      setDomainToDelete(null);
+    } catch (error) {
+      console.error("Failed to delete domain:", error);
+      alert("Une erreur est survenue lors de la suppression du domaine.");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
 
   // Grouping Logic - Use utility function with optional filtering
   const groupedEntries = useMemo(() => {
@@ -219,6 +406,69 @@ const App: React.FC = () => {
     }
     return groupEntriesByWeek(filteredEntries);
   }, [entries, timerBillingFilter]);
+
+  const [licenseFilter, setLicenseFilter] = useState<'all' | 'invoiced' | 'not-invoiced'>('all');
+  const [newLicenseName, setNewLicenseName] = useState('');
+  const [newLicensePrice, setNewLicensePrice] = useState<number | ''>('');
+  const [licenseProjectId, setLicenseProjectId] = useState<string>('');
+
+  const filteredLicenses = useMemo(() => {
+    if (licenseFilter === 'invoiced') return licenses.filter(l => l.invoiced);
+    if (licenseFilter === 'not-invoiced') return licenses.filter(l => !l.invoiced);
+    return licenses;
+  }, [licenses, licenseFilter]);
+
+  const renderLicensesView = () => (
+    <PurchaseManager
+      title="Acheter / Enregistrer une Licence"
+      icon={CreditCard}
+      items={licenses}
+      projects={projects}
+      onAddItem={handleAddLicense}
+      onToggleInvoiced={toggleLicenseInvoiced}
+      onDeleteItem={initiateDeleteLicense}
+      onUpdateItem={handleUpdateLicense}
+      addButtonLabel="Ajouter la licence"
+      emptyLabel="Aucune licence trouvée."
+      itemSingular="licence"
+      itemPlural="licences"
+    />
+  );
+
+  const renderServersView = () => (
+    <PurchaseManager
+      title="Enregistrer un Serveur Web"
+      icon={ServerIcon}
+      items={servers}
+      projects={projects}
+      onAddItem={handleAddServer}
+      onToggleInvoiced={toggleServerInvoiced}
+      onDeleteItem={initiateDeleteServer}
+      onUpdateItem={handleUpdateServer}
+      addButtonLabel="Ajouter le serveur"
+      emptyLabel="Aucun serveur trouvé."
+      itemSingular="serveur"
+      itemPlural="serveurs"
+    />
+  );
+
+  const renderDomainsView = () => (
+    <PurchaseManager
+      title="Enregistrer un Nom de Domaine"
+      icon={Globe}
+      items={domains}
+      projects={projects}
+      onAddItem={handleAddDomain}
+      onToggleInvoiced={toggleDomainInvoiced}
+      onDeleteItem={initiateDeleteDomain}
+      onUpdateItem={handleUpdateDomain}
+      addButtonLabel="Ajouter le domaine"
+      emptyLabel="Aucun domaine trouvé."
+      itemSingular="domaine"
+      itemPlural="domaines"
+    />
+  );
+
 
   const selectedProject = projects.find(p => p.id === selectedProjectId);
 
@@ -518,16 +768,6 @@ const App: React.FC = () => {
       </div>
 
       {/* Confirmation Modal */}
-      <ConfirmModal
-        isOpen={!!entryToDelete}
-        title="Supprimer l'entrée"
-        message="Voulez-vous vraiment supprimer cette entrée de temps ? Cette action est irréversible."
-        confirmLabel="Supprimer"
-        isDestructive
-        isLoading={isDeleting}
-        onConfirm={confirmDelete}
-        onCancel={() => setEntryToDelete(null)}
-      />
     </>
   );
 
@@ -561,6 +801,9 @@ const App: React.FC = () => {
             projects={projects}
             settings={settings}
             clients={clients}
+            licenses={licenses}
+            servers={servers}
+            domains={domains}
           />
         );
       case 'settings':
@@ -570,6 +813,12 @@ const App: React.FC = () => {
             onUpdateSettings={handleUpdateSettings}
           />
         );
+      case 'licenses':
+        return renderLicensesView();
+      case 'servers':
+        return renderServersView();
+      case 'domains':
+        return renderDomainsView();
       case 'timer':
       default:
         return renderTimerView();
@@ -611,6 +860,27 @@ const App: React.FC = () => {
           >
             <LayoutGrid className="w-4 h-4" />
             <span className="hidden sm:inline">Reports</span>
+          </button>
+          <button
+            onClick={() => setView('licenses')}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${view === 'licenses' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+          >
+            <CreditCard className="w-4 h-4" />
+            <span className="hidden sm:inline">Licences</span>
+          </button>
+          <button
+            onClick={() => setView('servers')}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${view === 'servers' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+          >
+            <ServerIcon className="w-4 h-4" />
+            <span className="hidden sm:inline">Serveurs</span>
+          </button>
+          <button
+            onClick={() => setView('domains')}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${view === 'domains' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+          >
+            <Globe className="w-4 h-4" />
+            <span className="hidden sm:inline">Domaines</span>
           </button>
           <button
             onClick={() => setView('settings')}
@@ -665,6 +935,50 @@ const App: React.FC = () => {
           onDelete={initiateDelete}
         />
       )}
+
+      <ConfirmModal
+        isOpen={!!licenseToDelete}
+        title="Supprimer la licence"
+        message="Voulez-vous vraiment supprimer cette licence ? Cette action est irréversible."
+        confirmLabel="Supprimer"
+        isDestructive
+        isLoading={isDeleting}
+        onConfirm={confirmDeleteLicense}
+        onCancel={() => setLicenseToDelete(null)}
+      />
+
+      <ConfirmModal
+        isOpen={!!serverToDelete}
+        title="Supprimer le serveur"
+        message="Voulez-vous vraiment supprimer ce serveur ? Cette action est irréversible."
+        confirmLabel="Supprimer"
+        isDestructive
+        isLoading={isDeleting}
+        onConfirm={confirmDeleteServer}
+        onCancel={() => setServerToDelete(null)}
+      />
+
+      <ConfirmModal
+        isOpen={!!domainToDelete}
+        title="Supprimer le domaine"
+        message="Voulez-vous vraiment supprimer ce domaine ? Cette action est irréversible."
+        confirmLabel="Supprimer"
+        isDestructive
+        isLoading={isDeleting}
+        onConfirm={confirmDeleteDomain}
+        onCancel={() => setDomainToDelete(null)}
+      />
+
+      <ConfirmModal
+        isOpen={!!entryToDelete}
+        title="Supprimer l'entrée"
+        message="Voulez-vous vraiment supprimer cette entrée de temps ? Cette action est irréversible."
+        confirmLabel="Supprimer"
+        isDestructive
+        isLoading={isDeleting}
+        onConfirm={confirmDelete}
+        onCancel={() => setEntryToDelete(null)}
+      />
     </div>
   );
 };
